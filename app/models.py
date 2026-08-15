@@ -1,0 +1,60 @@
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey
+from sqlalchemy.orm import relationship
+from datetime import datetime
+from app.database import Base
+
+
+class HomeBanner(Base):
+    """首页轮播图"""
+    __tablename__ = "home_banners"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(100), nullable=False)
+    image_url = Column(String(255), nullable=False)
+    link_url = Column(String(255), default="")
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+
+
+class HomeAnnouncement(Base):
+    """首页公告/资讯"""
+    __tablename__ = "home_announcements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(100), nullable=False)
+    content = Column(Text)
+    publish_time = Column(DateTime, default=datetime.utcnow)
+    is_active = Column(Boolean, default=True)
+
+
+class CulturalHistory(Base):
+    """文化历史条目"""
+    __tablename__ = "cultural_histories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(100), nullable=False)
+    period = Column(String(50), nullable=False)          # 时期，如“春秋战国”
+    summary = Column(Text, nullable=False)               # 摘要
+    content = Column(Text, nullable=False)               # 详细内容
+    image_url = Column(String(255), default="")
+    video_url = Column(String(255), default="")
+    region = Column(String(50), default="")              # 地域流派
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+
+
+class CraftStep(Base):
+    """工艺步骤"""
+    __tablename__ = "craft_steps"
+
+    id = Column(Integer, primary_key=True, index=True)
+    step_number = Column(Integer, nullable=False)
+    title = Column(String(100), nullable=False)
+    description = Column(Text, nullable=False)
+    image_url = Column(String(255), default="")
+    video_url = Column(String(255), default="")
+    material = Column(String(255), default="")           # 所需材料
+    tool = Column(String(255), default="")               # 使用工具
+    duration = Column(String(50), default="")            # 耗时
+    sort_order = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
