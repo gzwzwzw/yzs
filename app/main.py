@@ -7,6 +7,7 @@ from starlette.staticfiles import StaticFiles
 
 from app.database import SessionLocal, engine
 from app import models, schemas, crud
+from app.schemas import InteractiveModelOut
 from app.seed import init_db
 
 # 创建数据库表并初始化数据
@@ -100,3 +101,17 @@ def get_craft_step_detail(step_id: int, db: Session = Depends(get_db)):
 @app.get("/", tags=["系统"])
 def root():
     return {"message": "油纸伞非遗文化数字平台 API", "docs": "/docs"}
+
+# ==================== 模型展示接口 ====================
+@app.get("/api/interactive/models", response_model=List[InteractiveModelOut], tags=["互动体验"])
+def get_interactive_models():
+    """获取可用的3D模型列表"""
+    models = [
+        InteractiveModelOut(
+            id=1,
+            name="油纸伞三维模型",
+            description="支持鼠标旋转、缩放，体验油纸伞结构之美",
+            model_url="/static/models/oil_paper_umbrella.stl"
+        )
+    ]
+    return models

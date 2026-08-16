@@ -63,3 +63,12 @@ class CraftStepOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class InteractiveModelOut(BaseModel):
+    id: int
+    name: str
+    description: str
+    model_url: str
+
+    class Config:
+        from_attributes = True
