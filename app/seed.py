@@ -15,19 +15,19 @@ def init_db():
         banners = [
             models.HomeBanner(
                 title="千年油纸伞，东方之美",
-                image_url="https://example.com/banner1.jpg",
+                image_url="/static/images/banner1.jpg",
                 link_url="/history",
                 sort_order=1
             ),
             models.HomeBanner(
                 title="工艺传承，匠心独运",
-                image_url="https://example.com/banner2.jpg",
+                image_url="/static/images/banner2.jpg",
                 link_url="/craft",
                 sort_order=2
             ),
             models.HomeBanner(
                 title="体验数字油纸伞",
-                image_url="https://example.com/banner3.jpg",
+                image_url="/static/images/banner3.jpg",
                 link_url="/interactive",
                 sort_order=3
             ),
@@ -58,7 +58,7 @@ def init_db():
                 period="春秋战国",
                 summary="油纸伞起源于中国，最早可追溯到春秋战国时期。",
                 content="相传鲁班之妻云氏为丈夫遮阳避雨，仿照亭子制作了可收张的伞。后来蔡伦发明造纸术，人们用涂桐油的纸做伞面，称为油纸伞。",
-                image_url="https://example.com/history1.jpg",
+                image_url="/static/images/history1.jpg",
                 region="中国",
                 sort_order=1
             ),
@@ -67,7 +67,7 @@ def init_db():
                 period="唐宋",
                 summary="唐宋时期油纸伞在民间广泛使用，并传入日本、朝鲜等地。",
                 content="唐代油纸伞成为日常用品，宋代出现彩色伞面，文人墨客常在伞面题诗作画。",
-                image_url="https://example.com/history2.jpg",
+                image_url="/static/images/history2.jpg",
                 region="中国",
                 sort_order=2
             ),
@@ -75,9 +75,9 @@ def init_db():
                 title="四川泸州油纸伞",
                 period="明清至今",
                 summary="泸州油纸伞制作技艺被列入国家级非物质文化遗产。",
-                content="泸州油纸伞以手工精细、图案丰富著称，制作工序多达九十余道。",
-                image_url="https://example.com/history3.jpg",
-                video_url="https://example.com/luzhou.mp4",
+                content="泸州油纸伞以手工精细、图案丰富著称，制作工序多达九十余道。其中以分水岭镇为最盛，其被誉为“中国油纸伞之乡”。",
+                image_url="/static/images/history3.jpg",
+                video_url="/static/videos/luzhou.mp4",
                 region="四川泸州",
                 sort_order=3
             ),
@@ -86,7 +86,7 @@ def init_db():
                 period="明清至今",
                 summary="余杭油纸伞以轻巧耐用闻名，是江南水乡的代表。",
                 content="余杭油纸伞选用优质竹材和皮纸，伞面多绘有西湖风景、花鸟鱼虫。",
-                image_url="https://example.com/history4.jpg",
+                image_url="/static/images/history4.jpg",
                 region="浙江余杭",
                 sort_order=4
             ),
@@ -99,7 +99,7 @@ def init_db():
                 step_number=1,
                 title="选竹",
                 description="选用三年以上生长期的优质楠竹，要求竹节长、韧性好。",
-                image_url="https://example.com/craft1.jpg",
+                image_url="/static/images/craft1.jpg",
                 material="楠竹",
                 tool="砍刀、锯子",
                 duration="1天"
@@ -108,7 +108,7 @@ def init_db():
                 step_number=2,
                 title="削伞骨",
                 description="将竹子劈成细条，削成均匀的伞骨，长短一致。",
-                image_url="https://example.com/craft2.jpg",
+                image_url="/static/images/craft2.jpg",
                 material="竹条",
                 tool="篾刀、刨子",
                 duration="2-3天"
@@ -117,7 +117,7 @@ def init_db():
                 step_number=3,
                 title="钻孔",
                 description="在伞骨上钻出穿线孔，孔位必须精准对齐。",
-                image_url="https://example.com/craft3.jpg",
+                image_url="/static/images/craft3.jpg",
                 tool="手钻",
                 duration="1天"
             ),
@@ -125,7 +125,7 @@ def init_db():
                 step_number=4,
                 title="穿线组装",
                 description="用棉线将伞骨串联，形成伞架结构。",
-                image_url="https://example.com/craft4.jpg",
+                image_url="/static/images/craft4.jpg",
                 material="棉线",
                 tool="针",
                 duration="1天"
@@ -134,7 +134,7 @@ def init_db():
                 step_number=5,
                 title="裱伞面",
                 description="将裁剪好的皮纸或宣纸粘贴在伞骨上，要求平整无皱。",
-                image_url="https://example.com/craft5.jpg",
+                image_url="/static/images/craft5.jpg",
                 material="皮纸、浆糊",
                 tool="刷子",
                 duration="1-2天"
@@ -143,7 +143,7 @@ def init_db():
                 step_number=6,
                 title="绘花",
                 description="在伞面绘制传统图案，如花鸟、山水、吉祥纹样。",
-                image_url="https://example.com/craft6.jpg",
+                image_url="/static/images/craft6.jpg",
                 material="矿物颜料",
                 tool="毛笔",
                 duration="1-3天"
@@ -152,7 +152,7 @@ def init_db():
                 step_number=7,
                 title="上桐油",
                 description="在伞面均匀涂刷桐油，使伞面防水、耐用、有光泽。",
-                image_url="https://example.com/craft7.jpg",
+                image_url="/static/images/craft7.jpg",
                 material="桐油",
                 tool="刷子",
                 duration="1天"
@@ -161,7 +161,7 @@ def init_db():
                 step_number=8,
                 title="晾晒",
                 description="将上好桐油的伞在通风处晾干，避免暴晒。",
-                image_url="https://example.com/craft8.jpg",
+                image_url="/static/images/craft8.jpg",
                 duration="2-3天"
             ),
         ]

@@ -2,6 +2,9 @@ from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
+
+from starlette.staticfiles import StaticFiles
+
 from app.database import SessionLocal, engine
 from app import models, schemas, crud
 from app.seed import init_db
@@ -15,6 +18,8 @@ app = FastAPI(
     description="提供油纸伞文化历史、工艺展示等数据接口",
     version="1.0.0"
 )
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # 配置跨域
 app.add_middleware(
