@@ -142,9 +142,12 @@
             inset: 0;
             opacity: 0;
             transition: opacity 1s;
+            pointer-events: none;
         }
         .banner-slide.active {
             opacity: 1;
+            pointer-events: auto;
+            cursor: pointer;
         }
         .banner-slide img {
             width: 100%;
@@ -243,13 +246,17 @@
                 <div>
                     <!-- 轮播图 -->
                     <div class="banner-carousel" v-if="banners.length > 0">
-                        <div v-for="(banner, index) in banners" :key="banner.id"
-                             class="banner-slide" :class="{ active: index === currentBanner }">
-                            <img :src="banner.image_url" :alt="banner.title">
-                            <div class="banner-text">
-                                <h2>{{ banner.title }}</h2>
-                            </div>
+                    <div v-for="(banner, index) in banners"
+                         :key="banner.id"
+                         class="banner-slide"
+                         :class="{ active: index === currentBanner }"
+                         @click="goToBanner(banner)"
+                         style="cursor: pointer;">
+                        <img :src="banner.image_url" :alt="banner.title">
+                        <div class="banner-text">
+                            <h2>{{ banner.title }}</h2>
                         </div>
+                    </div>
                     </div>
 
                     <!-- 公告区域 -->
@@ -273,6 +280,13 @@
                     currentBanner: 0,
                     timer: null
                 };
+            },
+            methods: {
+                goToBanner(banner) {
+                    if (banner && banner.link_url) {
+                        this.$router.push(banner.link_url);
+                    }
+                }
             },
             async mounted() {
                 try {
