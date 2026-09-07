@@ -412,6 +412,18 @@
                     if (banner && banner.link_url) {
                         this.$router.push(banner.link_url);
                     }
+                },
+                formatTime(dateStr) {
+                    if (!dateStr) return '';
+                    return new Date(dateStr).toLocaleString('zh-CN', {
+                        timeZone: 'Asia/Shanghai',
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
                 }
             },
             async mounted() {
@@ -641,6 +653,7 @@
 
         // ==================== 工艺步骤详情组件 ====================
         const CraftDetailPage = {
+        inject: ['userState'],
             template: `
                 <div>
                     <router-link to="/craft" style="color: var(--primary-color);">← 返回工艺列表</router-link>
@@ -665,20 +678,117 @@
                     </div>
                     <p v-else>加载中...</p>
                 </div>
+                <!-- 点赞区域 -->
+                    <div style="margin: 20px 0; text-align: center;">
+                        <button @click="toggleLike" class="btn" :style="{ background: isLiked ? '#a43e2e' : '#ccc' }">
+                            👍 点赞 {{ likeCount }}
+                        </button>
+                    </div>
+
+                    <!-- 评论区 -->
+                    <div style="margin-top: 30px;">
+                        <h3>评论 ({{ comments.length }})</h3>
+                        <div v-if="userState.isLoggedIn">
+                            <textarea v-model="newComment" rows="3" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:6px;"></textarea>
+                            <button @click="submitComment" class="btn" style="margin-top:10px;">发表评论</button>
+                        </div>
+                        <div v-else>
+                            <p><router-link to="/login">登录</router-link> 后参与评论</p>
+                        </div>
+
+                        <div v-for="comment in comments" :key="comment.id" style="display:flex; gap:10px; margin:15px 0; padding:10px; background:white; border-radius:8px;">
+                            <img v-if="comment.avatar_url" :src="baseUrl + comment.avatar_url" style="width:40px; height:40px; border-radius:50%; object-fit:cover;">
+                            <div v-else style="width:40px; height:40px; border-radius:50%; background:#eee; display:flex; align-items:center; justify-content:center; font-weight:bold;">
+                                {{ comment.username.charAt(0).toUpperCase() }}
+                            </div>
+                            <div>
+                                <strong>{{ comment.username }}</strong>
+                                <p style="margin:5px 0;">{{ comment.text }}</p>
+                                <small style="color:#999;">{{ new Date(comment.created_at).toLocaleString() }}</small>
+                            </div>
+                        </div>
+                    </div>
             `,
             data() {
-                return { step: null };
+                return {
+                    step: null,
+                    baseUrl: 'http://localhost:8000',
+                    likeCount: 0,
+                    isLiked: false,
+                    comments: [],
+                    newComment: ''
+                };
             },
             async mounted() {
                 const id = this.$route.params.id;
                 try {
-                    const res = await axios.get(`http://localhost:8000/api/craft/${id}`);
+                    const res = await axios.get(`${this.baseUrl}/api/craft/${id}`);
                     this.step = res.data;
+                    // 加载点赞状态
+                    await this.loadLikeStatus();
+                    // 加载评论
+                    await this.loadComments();
                 } catch (error) {
-                    console.error('获取步骤详情失败:', error);
+                    console.error('获取详情失败:', error);
+                }
+            },
+            methods: {
+                async loadLikeStatus() {
+                    const id = this.$route.params.id;
+                    const res = await axios.get(`${this.baseUrl}/api/likes/craft/${id}`);
+                    this.likeCount = res.data.count;
+                    // 如果已登录，再检查是否已点赞
+                    if (this.userState.isLoggedIn) {
+                        const authRes = await axios.get(`${this.baseUrl}/api/likes/craft/${id}`, {
+                            headers: { Authorization: `Bearer ${this.userState.token}` }
+                        });
+                        this.isLiked = authRes.data.is_liked;
+                    } else {
+                        this.isLiked = false;
+                    }
+                },
+                async toggleLike() {
+                    if (!this.userState.isLoggedIn) {
+                        this.$router.push('/login');
+                        return;
+                    }
+                    const id = this.$route.params.id;
+                    try {
+                        if (this.isLiked) {
+                            await axios.delete(`${this.baseUrl}/api/likes/craft/${id}`);
+                            this.isLiked = false;
+                            this.likeCount -= 1;
+                        } else {
+                            await axios.post(`${this.baseUrl}/api/likes/craft/${id}`);
+                            this.isLiked = true;
+                            this.likeCount += 1;
+                        }
+                    } catch (err) {
+                        alert('操作失败');
+                    }
+                },
+                async loadComments() {
+                    const id = this.$route.params.id;
+                    const res = await axios.get(`${this.baseUrl}/api/comments/craft/${id}`);
+                    this.comments = res.data;
+                },
+                async submitComment() {
+                    if (!this.newComment.trim()) return;
+                    const id = this.$route.params.id;
+                    try {
+                        await axios.post(`${this.baseUrl}/api/comments/craft/${id}`, {
+                            text: this.newComment
+                        });
+                        this.newComment = '';
+                        await this.loadComments();
+                    } catch (err) {
+                        alert('评论失败，请登录');
+                    }
                 }
             }
         };
+
+        //  =================================互动体验页面=============================
         const InteractivePage = {
             template: `
                 <div>
@@ -938,7 +1048,7 @@
             template: `
                 <div>
                     <h1>公告管理</h1>
-                    <div class="form-container" style="max-width:600px;">
+                    <div class="form-container" style="max-width:100%;">
                         <h3>{{ editingId ? '编辑公告' : '新增公告' }}</h3>
                         <div class="form-group">
                             <label>标题</label>
