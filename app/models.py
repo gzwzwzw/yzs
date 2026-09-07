@@ -67,3 +67,4 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(String(20), default="user", nullable=False)  # "user" 或 "admin"
     created_at = Column(DateTime, default=datetime.utcnow)
+    avatar_url = Column(String(255), default="", nullable=True)  # 新增头像字段

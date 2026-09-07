@@ -284,8 +284,9 @@
                     <router-link to="/interactive">互动体验</router-link>
                     <template v-if="userState.isLoggedIn">
                         <router-link v-if="userState.isAdmin" to="/admin/announcements">公告管理</router-link>
-                        <span style="margin-left:10px;">{{ userState.currentUser.username }}</span>
-                        <a href="#" @click.prevent="logout" style="margin-left:10px;">退出</a>
+                        <router-link to="/profile">个人中心</router-link>
+                        <span>{{ userState.currentUser.username }}</span>
+                        <a href="#" @click.prevent="logout">退出</a>
                     </template>
                     <template v-else>
                         <router-link to="/login">登录/注册</router-link>
@@ -874,6 +875,66 @@
         };
 
 
+        const ProfilePage = {
+            inject: ['userState'],
+            template: `
+                <div>
+                    <h1 style="text-align:center;">个人中心</h1>
+                    <div class="form-container" style="max-width:500px; text-align:center;">
+                        <div v-if="userState.currentUser.avatar_url">
+                            <img :src="baseUrl + userState.currentUser.avatar_url"
+                                 style="width:120px; height:120px; border-radius:50%; object-fit:cover; border:2px solid #ddd;">
+                        </div>
+                        <div v-else>
+                            <div style="width:120px; height:120px; border-radius:50%; background:#eee; display:inline-flex; align-items:center; justify-content:center; font-size:2rem; color:#999;">
+                                {{ userState.currentUser.username.charAt(0).toUpperCase() }}
+                            </div>
+                        </div>
+                        <p style="margin-top:15px;"><strong>用户名：</strong>{{ userState.currentUser.username }}</p>
+                        <p><strong>角色：</strong>{{ userState.currentUser.role === 'admin' ? '管理员' : '普通用户' }}</p>
+                        <hr style="margin:20px 0;">
+                        <div>
+                            <label for="avatar-upload" class="btn" style="cursor:pointer;">上传头像</label>
+                            <input type="file" id="avatar-upload" accept="image/*" style="display:none;" @change="uploadAvatar">
+                        </div>
+                        <p v-if="uploadMessage" style="color: green; margin-top:10px;">{{ uploadMessage }}</p>
+                        <p v-if="error" style="color: red;">{{ error }}</p>
+                    </div>
+                </div>
+            `,
+            data() {
+                return {
+                    baseUrl: 'http://localhost:8000',
+                    uploadMessage: '',
+                    error: ''
+                };
+            },
+            methods: {
+                async uploadAvatar(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    try {
+                        const res = await axios.post(`${this.baseUrl}/api/auth/avatar`, formData, {
+                            headers: { 'Content-Type': 'multipart/form-data' }
+                        });
+                        // 更新全局用户信息
+                        userState.user = res.data;
+                        localStorage.setItem('user', JSON.stringify(res.data));
+                        this.uploadMessage = '头像上传成功！';
+                        this.error = '';
+                        // 清空文件选择，以便重复选择同一文件触发 change
+                        event.target.value = '';
+                    } catch (err) {
+                        this.error = err.response?.data?.detail || '上传失败';
+                        this.uploadMessage = '';
+                    }
+                }
+            }
+        };
+
+
         // ==================== 路由配置 ====================
         const routes = [
             { path: '/', component: HomePage },
@@ -888,7 +949,12 @@
                 path: '/admin/announcements',
                 component: AdminAnnouncements,
                 meta: { requiresAuth: true, requiresAdmin: true }
-            }
+            },
+            {
+                path: '/profile',
+                component: ProfilePage,
+                meta: { requiresAuth: true }
+            },
         ];
 
         const router = createRouter({

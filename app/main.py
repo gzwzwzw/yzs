@@ -2,7 +2,9 @@ from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
-
+from fastapi import UploadFile, File
+import os
+import shutil
 from starlette.staticfiles import StaticFiles
 
 from app.database import SessionLocal, engine
@@ -179,3 +181,40 @@ def admin_delete_announcement(
     if not success:
         raise HTTPException(status_code=404, detail="Announcement not found")
     return {"message": "Announcement deleted"}
+
+
+# 头像上传目录
+AVATAR_DIR = "static/avatars"
+os.makedirs(AVATAR_DIR, exist_ok=True)
+
+
+@app.post("/api/auth/avatar", response_model=schemas.UserOut, tags=["认证"])
+async def upload_avatar(
+        file: UploadFile = File(...),
+        current_user: models.User = Depends(get_current_user),
+        db: Session = Depends(get_db)
+):
+    # 检查文件类型
+    allowed_types = ["image/jpeg", "image/png", "image/gif"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Only JPG/PNG/GIF images allowed")
+
+    # 生成唯一文件名
+    file_ext = os.path.splitext(file.filename)[1]
+    filename = f"user_{current_user.id}{file_ext}"
+    file_path = os.path.join(AVATAR_DIR, filename)
+
+    # 保存文件
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # 在当前 db 会话中重新查询用户（避免跨会话操作）
+    user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    avatar_url = f"/static/avatars/{filename}"
+    user.avatar_url = avatar_url
+    db.commit()
+    db.refresh(user)
+    return user

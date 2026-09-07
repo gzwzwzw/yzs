@@ -19,6 +19,7 @@ class UserOut(BaseModel):
     id: int
     username: str
     role: str
+    avatar_url: Optional[str] = None
 
     class Config:
         from_attributes = True
