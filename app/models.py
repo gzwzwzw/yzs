@@ -68,3 +68,27 @@ class User(Base):
     role = Column(String(20), default="user", nullable=False)  # "user" 或 "admin"
     created_at = Column(DateTime, default=datetime.utcnow)
     avatar_url = Column(String(255), default="", nullable=True)  # 新增头像字段
+
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import relationship
+
+# 在现有模型后添加
+class Like(Base):
+    __tablename__ = "likes"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content_type = Column(String(50), nullable=False)
+    content_id = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    __table_args__ = (UniqueConstraint('user_id', 'content_type', 'content_id', name='_user_content_uc'),)
+
+class Comment(Base):
+    __tablename__ = "comments"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content_type = Column(String(50), nullable=False)
+    content_id = Column(Integer, nullable=False)
+    text = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User")

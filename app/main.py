@@ -218,3 +218,93 @@ async def upload_avatar(
     db.commit()
     db.refresh(user)
     return user
+
+# ==================== 点赞评论接口 ====================
+@app.get("/api/likes/{content_type}/{content_id}", response_model=schemas.LikeStatus, tags=["互动"])
+def get_like_status(
+    content_type: str,
+    content_id: int,
+    db: Session = Depends(get_db)
+):
+    count = crud.get_like_count(db, content_type, content_id)
+    return {"count": count, "is_liked": False}  # 前端登录后再调用一次检查
+
+@app.post("/api/likes/{content_type}/{content_id}", response_model=schemas.LikeStatus, tags=["互动"])
+def like_content(
+    content_type: str,
+    content_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)  # 必须登录
+):
+    # 检查内容类型是否合法
+    if content_type not in ["history", "craft"]:
+        raise HTTPException(status_code=400, detail="Invalid content type")
+    # 检查是否已点赞
+    existing = crud.get_like(db, current_user.id, content_type, content_id)
+    if not existing:
+        crud.add_like(db, current_user.id, content_type, content_id)
+    count = crud.get_like_count(db, content_type, content_id)
+    return {"count": count, "is_liked": True}
+
+@app.delete("/api/likes/{content_type}/{content_id}", response_model=schemas.LikeStatus, tags=["互动"])
+def unlike_content(
+    content_type: str,
+    content_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if content_type not in ["history", "craft"]:
+        raise HTTPException(status_code=400, detail="Invalid content type")
+    existing = crud.get_like(db, current_user.id, content_type, content_id)
+    if existing:
+        crud.remove_like(db, existing)
+    count = crud.get_like_count(db, content_type, content_id)
+    return {"count": count, "is_liked": False}
+
+@app.get("/api/comments/{content_type}/{content_id}", response_model=List[schemas.CommentOut], tags=["互动"])
+def get_comments(
+    content_type: str,
+    content_id: int,
+    db: Session = Depends(get_db)
+):
+    if content_type not in ["history", "craft"]:
+        raise HTTPException(status_code=400, detail="Invalid content type")
+    comments = crud.get_comments(db, content_type, content_id)
+    # 构造带用户名的输出
+    result = []
+    for c in comments:
+        user = db.query(models.User).filter(models.User.id == c.user_id).first()
+        result.append(schemas.CommentOut(
+            id=c.id,
+            user_id=c.user_id,
+            username=user.username if user else "未知用户",
+            avatar_url=user.avatar_url if user else None,
+            content_type=c.content_type,
+            content_id=c.content_id,
+            text=c.text,
+            created_at=c.created_at
+        ))
+    return result
+
+@app.post("/api/comments/{content_type}/{content_id}", response_model=schemas.CommentOut, tags=["互动"])
+def create_comment(
+    content_type: str,
+    content_id: int,
+    comment_data: schemas.CommentCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if content_type not in ["history", "craft"]:
+        raise HTTPException(status_code=400, detail="Invalid content type")
+    comment = crud.add_comment(db, current_user.id, content_type, content_id, comment_data.text)
+    # 返回带用户信息
+    return schemas.CommentOut(
+        id=comment.id,
+        user_id=comment.user_id,
+        username=current_user.username,
+        avatar_url=current_user.avatar_url,
+        content_type=comment.content_type,
+        content_id=comment.content_id,
+        text=comment.text,
+        created_at=comment.created_at
+    )

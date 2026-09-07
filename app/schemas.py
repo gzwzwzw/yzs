@@ -104,3 +104,30 @@ class InteractiveModelOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+from pydantic import BaseModel
+from datetime import datetime
+from typing import Optional, List
+
+# 点赞状态返回
+class LikeStatus(BaseModel):
+    count: int
+    is_liked: bool
+
+# 评论创建
+class CommentCreate(BaseModel):
+    text: str
+
+# 评论输出
+class CommentOut(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    avatar_url: Optional[str] = None
+    content_type: str
+    content_id: int
+    text: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

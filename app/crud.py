@@ -85,3 +85,42 @@ def delete_announcement(db: Session, ann_id: int):
     db.delete(ann)
     db.commit()
     return True
+
+# 点赞相关
+def get_like(db: Session, user_id: int, content_type: str, content_id: int):
+    return db.query(models.Like).filter(
+        models.Like.user_id == user_id,
+        models.Like.content_type == content_type,
+        models.Like.content_id == content_id
+    ).first()
+
+def add_like(db: Session, user_id: int, content_type: str, content_id: int):
+    like = models.Like(user_id=user_id, content_type=content_type, content_id=content_id)
+    db.add(like)
+    db.commit()
+    db.refresh(like)
+    return like
+
+def remove_like(db: Session, like: models.Like):
+    db.delete(like)
+    db.commit()
+
+def get_like_count(db: Session, content_type: str, content_id: int):
+    return db.query(models.Like).filter(
+        models.Like.content_type == content_type,
+        models.Like.content_id == content_id
+    ).count()
+
+# 评论相关
+def get_comments(db: Session, content_type: str, content_id: int):
+    return db.query(models.Comment).filter(
+        models.Comment.content_type == content_type,
+        models.Comment.content_id == content_id
+    ).order_by(models.Comment.created_at.desc()).all()
+
+def add_comment(db: Session, user_id: int, content_type: str, content_id: int, text: str):
+    comment = models.Comment(user_id=user_id, content_type=content_type, content_id=content_id, text=text)
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+    return comment
