@@ -1,6 +1,37 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
+
+# ===== 用户认证 =====
+class UserRegister(BaseModel):
+    username: str
+    password: str
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class UserOut(BaseModel):
+    id: int
+    username: str
+    role: str
+
+    class Config:
+        from_attributes = True
+
+# ===== 公告管理 =====
+class AnnouncementCreate(BaseModel):
+    title: str
+    content: str
+
+class AnnouncementUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    is_active: Optional[bool] = None
 
 
 class HomeBannerOut(BaseModel):

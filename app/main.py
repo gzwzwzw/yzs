@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
@@ -9,6 +9,11 @@ from app.database import SessionLocal, engine
 from app import models, schemas, crud
 from app.schemas import InteractiveModelOut
 from app.seed import init_db
+from fastapi.security import OAuth2PasswordRequestForm
+from app.auth import (
+    get_current_user, get_current_admin, create_access_token,
+    get_password_hash, verify_password, oauth2_scheme
+)
 
 # 创建数据库表并初始化数据
 models.Base.metadata.create_all(bind=engine)
@@ -115,3 +120,62 @@ def get_interactive_models():
         )
     ]
     return models
+
+# ==================== 认证接口 ====================
+@app.post("/api/auth/register", response_model=schemas.UserOut, tags=["认证"])
+def register(user: schemas.UserRegister, db: Session = Depends(get_db)):
+    db_user = crud.get_user_by_username(db, user.username)
+    if db_user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+    hashed = get_password_hash(user.password)
+    new_user = crud.create_user(db, user.username, hashed)
+    return new_user
+
+@app.post("/api/auth/login", response_model=schemas.Token, tags=["认证"])
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = crud.get_user_by_username(db, form_data.username)
+    if not user or not verify_password(form_data.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token = create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.get("/api/auth/me", response_model=schemas.UserOut, tags=["认证"])
+def read_users_me(current_user: models.User = Depends(get_current_user)):
+    return current_user
+
+# ==================== 管理员公告管理接口 ====================
+@app.post("/api/admin/announcements", response_model=schemas.HomeAnnouncementOut, tags=["管理员"])
+def admin_create_announcement(
+    ann: schemas.AnnouncementCreate,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin)
+):
+    return crud.create_announcement(db, ann.title, ann.content)
+
+@app.put("/api/admin/announcements/{ann_id}", response_model=schemas.HomeAnnouncementOut, tags=["管理员"])
+def admin_update_announcement(
+    ann_id: int,
+    ann: schemas.AnnouncementUpdate,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin)
+):
+    updates = {k: v for k, v in ann.dict(exclude_unset=True).items() if v is not None}
+    updated = crud.update_announcement(db, ann_id, updates)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+    return updated
+
+@app.delete("/api/admin/announcements/{ann_id}", tags=["管理员"])
+def admin_delete_announcement(
+    ann_id: int,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin)
+):
+    success = crud.delete_announcement(db, ann_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+    return {"message": "Announcement deleted"}

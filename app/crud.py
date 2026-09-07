@@ -48,3 +48,40 @@ def get_craft_step_detail(db: Session, step_id: int):
             .filter(models.CraftStep.id == step_id,
                     models.CraftStep.is_active == True)
             .first())
+
+# 用户相关
+def get_user_by_username(db: Session, username: str):
+    return db.query(models.User).filter(models.User.username == username).first()
+
+def create_user(db: Session, username: str, password_hash: str, role: str = "user"):
+    user = models.User(username=username, password_hash=password_hash, role=role)
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+# 公告管理
+def create_announcement(db: Session, title: str, content: str):
+    ann = models.HomeAnnouncement(title=title, content=content)
+    db.add(ann)
+    db.commit()
+    db.refresh(ann)
+    return ann
+
+def update_announcement(db: Session, ann_id: int, updates: dict):
+    ann = db.query(models.HomeAnnouncement).filter(models.HomeAnnouncement.id == ann_id).first()
+    if not ann:
+        return None
+    for key, value in updates.items():
+        setattr(ann, key, value)
+    db.commit()
+    db.refresh(ann)
+    return ann
+
+def delete_announcement(db: Session, ann_id: int):
+    ann = db.query(models.HomeAnnouncement).filter(models.HomeAnnouncement.id == ann_id).first()
+    if not ann:
+        return False
+    db.delete(ann)
+    db.commit()
+    return True

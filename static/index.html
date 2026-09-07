@@ -72,13 +72,16 @@
         }
         .nav-links {
             display: flex;
-            gap: 30px;
+            align-items: center;      /* 关键：垂直居中 */
+            gap: 20px;
         }
-        .nav-links a {
+        .nav-links a,
+        .nav-links span {
             padding: 8px 12px;
             border-radius: 6px;
-            transition: background 0.3s;
             font-size: 1.1rem;
+            line-height: 1.6;
+            transition: background 0.3s;
         }
         .nav-links a:hover,
         .nav-links a.router-link-active {
@@ -213,6 +216,59 @@
                 font-size: 1.8rem;
             }
         }
+        .form-container {
+            max-width: 400px;
+            margin: 40px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        .admin-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .admin-table th, .admin-table td {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+        .admin-table th {
+            background: #f5f5f5;
+        }
+        .btn-danger {
+            background: #d9534f;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-edit {
+            background: #5bc0de;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
@@ -226,6 +282,14 @@
                     <router-link to="/history">文化历史</router-link>
                     <router-link to="/craft">工艺展示</router-link>
                     <router-link to="/interactive">互动体验</router-link>
+                    <template v-if="userState.isLoggedIn">
+                        <router-link v-if="userState.isAdmin" to="/admin/announcements">公告管理</router-link>
+                        <span style="margin-left:10px;">{{ userState.currentUser.username }}</span>
+                        <a href="#" @click.prevent="logout" style="margin-left:10px;">退出</a>
+                    </template>
+                    <template v-else>
+                        <router-link to="/login">登录/注册</router-link>
+                    </template>
                 </div>
             </div>
         </nav>
@@ -237,8 +301,25 @@
     </div>
 
     <script>
-        const { createApp } = Vue;
-        const { createRouter, createWebHashHistory } = VueRouter;
+        const { createApp, ref, reactive, computed, provide } = Vue;
+        const { createRouter, createWebHashHistory, useRouter } = VueRouter;
+
+        // ==================== 全局状态 ====================
+        const userState = reactive({
+            token: localStorage.getItem('token') || '',
+            user: JSON.parse(localStorage.getItem('user') || 'null'),
+            isLoggedIn: computed(() => !!userState.token),
+            isAdmin: computed(() => userState.user && userState.user.role === 'admin'),
+            currentUser: computed(() => userState.user || {})
+        });
+
+        // Axios 拦截器
+        axios.interceptors.request.use(config => {
+            if (userState.token) {
+                config.headers.Authorization = `Bearer ${userState.token}`;
+            }
+            return config;
+        });
 
         // ==================== 首页组件 ====================
         const HomePage = {
@@ -456,177 +537,342 @@
                 }
             }
         };
-const InteractivePage = {
-    template: `
-        <div>
-            <h1 style="text-align:center; margin-bottom:20px;">🖱️ 油纸伞3D互动体验</h1>
-            <div v-if="loading" style="text-align:center; padding:50px;">加载中...</div>
-            <div v-if="!loading && models.length > 0">
-                <p style="text-align:center; color:#666;">{{ models[0].description }}</p>
-                <div id="three-container" style="width:100%; height:500px; border-radius:12px; box-shadow: var(--shadow); background:#f0f0f0; margin-top:20px;"></div>
-                <p style="text-align:center; margin-top:15px; color:#999;">🖱️ 鼠标拖动旋转 | 滚轮缩放 | 右键平移</p>
-            </div>
-            <p v-else-if="!loading && models.length === 0">暂无3D模型</p>
-        </div>
-    `,
-    data() {
-        return {
-            models: [],
-            loading: true,
-            renderer: null,
-            scene: null,
-            camera: null,
-            controls: null,
-            animationId: null
-        };
-    },
-    async mounted() {
-        try {
-            // 1. 获取模型信息
-            const res = await axios.get('http://localhost:8000/api/interactive/models');
-            this.models = res.data;
-
-            // 2. 立即将 loading 设为 false，让 Vue 渲染出 3D 容器
-            this.loading = false;
-
-            // 3. 等待 DOM 更新完成，确保 #three-container 已存在
-            await this.$nextTick();
-
-            if (this.models.length === 0) return;
-
-            // 4. 动态导入 Three.js 模块
-            const THREE = await import('three');
-            const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
-            const { STLLoader } = await import('three/addons/loaders/STLLoader.js');
-
-            const container = document.getElementById('three-container');
-            if (!container) {
-                console.error('未找到 three-container 元素');
-                return;
-            }
-
-            // 5. 创建场景
-            const scene = new THREE.Scene();
-            scene.background = new THREE.Color(0xfaf6ef);
-            this.scene = scene;
-
-            // 相机
-            const camera = new THREE.PerspectiveCamera(
-                45,
-                container.clientWidth / container.clientHeight,
-                0.1,
-                1000
-            );
-            camera.position.set(5, 5, 5);
-            this.camera = camera;
-
-            // 渲染器
-            const renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            container.appendChild(renderer.domElement);
-            this.renderer = renderer;
-
-            // 灯光
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(5, 10, 5);
-            scene.add(directionalLight);
-
-            // 轨道控制器
-            const controls = new OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.autoRotate = true;
-            controls.autoRotateSpeed = 1.0;
-            this.controls = controls;
-
-            // 加载 STL 模型
-            const loader = new STLLoader();
-            const modelUrl = this.models[0].model_url;
-            loader.load(
-                modelUrl,
-                (geometry) => {
-                // 计算模型包围盒，用于缩放和居中
-                geometry.computeBoundingBox();
-                const boundingBox = geometry.boundingBox;
-                const center = boundingBox.getCenter(new THREE.Vector3());
-                const size = boundingBox.getSize(new THREE.Vector3());
-                const maxDim = Math.max(size.x, size.y, size.z);
-                const scale = 3 / maxDim;
-
-                // 创建主材质（浅色，略带粗糙）
-                const material = new THREE.MeshStandardMaterial({
-                    color: 0xf5f0e6,          // 米白色
-                    roughness: 0.4,
-                    metalness: 0.1
-                });
-
-                const mesh = new THREE.Mesh(geometry, material);
-                mesh.scale.setScalar(scale);
-                mesh.position.sub(center.clone().multiplyScalar(scale));
-                scene.add(mesh);
-
-                // 创建边缘线
-                const edges = new THREE.EdgesGeometry(geometry);
-                const lineMaterial = new THREE.LineBasicMaterial({ color: 0x555555, linewidth: 1 });
-                const wireframe = new THREE.LineSegments(edges, lineMaterial);
-                wireframe.scale.setScalar(scale);
-                wireframe.position.copy(mesh.position); // 与主模型位置一致
-                scene.add(wireframe);
-
-                // 设置控制器焦点
-                controls.target.set(0, 0, 0);
-                controls.update();
+        const InteractivePage = {
+            template: `
+                <div>
+                    <h1 style="text-align:center; margin-bottom:20px;">🖱️ 油纸伞3D互动体验</h1>
+                    <div v-if="loading" style="text-align:center; padding:50px;">加载中...</div>
+                    <div v-if="!loading && models.length > 0">
+                        <p style="text-align:center; color:#666;">{{ models[0].description }}</p>
+                        <div id="three-container" style="width:100%; height:500px; border-radius:12px; box-shadow: var(--shadow); background:#f0f0f0; margin-top:20px;"></div>
+                        <p style="text-align:center; margin-top:15px; color:#999;">🖱️ 鼠标拖动旋转 | 滚轮缩放 | 右键平移</p>
+                    </div>
+                    <p v-else-if="!loading && models.length === 0">暂无3D模型</p>
+                </div>
+            `,
+            data() {
+                return {
+                    models: [],
+                    loading: true,
+                    renderer: null,
+                    scene: null,
+                    camera: null,
+                    controls: null,
+                    animationId: null
+                };
             },
-                (xhr) => {
-                    console.log(`模型加载进度: ${(xhr.loaded / xhr.total * 100).toFixed(2)}%`);
-                },
-                (error) => {
-                    console.error('模型加载失败:', error);
-                    alert('3D模型加载失败，请检查文件是否存在');
+            async mounted() {
+                try {
+                    // 1. 获取模型信息
+                    const res = await axios.get('http://localhost:8000/api/interactive/models');
+                    this.models = res.data;
+
+                    // 2. 立即将 loading 设为 false，让 Vue 渲染出 3D 容器
+                    this.loading = false;
+
+                    // 3. 等待 DOM 更新完成，确保 #three-container 已存在
+                    await this.$nextTick();
+
+                    if (this.models.length === 0) return;
+
+                    // 4. 动态导入 Three.js 模块
+                    const THREE = await import('three');
+                    const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
+                    const { STLLoader } = await import('three/addons/loaders/STLLoader.js');
+
+                    const container = document.getElementById('three-container');
+                    if (!container) {
+                        console.error('未找到 three-container 元素');
+                        return;
+                    }
+
+                    // 5. 创建场景
+                    const scene = new THREE.Scene();
+                    scene.background = new THREE.Color(0xfaf6ef);
+                    this.scene = scene;
+
+                    // 相机
+                    const camera = new THREE.PerspectiveCamera(
+                        45,
+                        container.clientWidth / container.clientHeight,
+                        0.1,
+                        1000
+                    );
+                    camera.position.set(5, 5, 5);
+                    this.camera = camera;
+
+                    // 渲染器
+                    const renderer = new THREE.WebGLRenderer({ antialias: true });
+                    renderer.setSize(container.clientWidth, container.clientHeight);
+                    renderer.setPixelRatio(window.devicePixelRatio);
+                    container.appendChild(renderer.domElement);
+                    this.renderer = renderer;
+
+                    // 灯光
+                    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+                    scene.add(ambientLight);
+                    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                    directionalLight.position.set(5, 10, 5);
+                    scene.add(directionalLight);
+
+                    // 轨道控制器
+                    const controls = new OrbitControls(camera, renderer.domElement);
+                    controls.enableDamping = true;
+                    controls.dampingFactor = 0.05;
+                    controls.autoRotate = true;
+                    controls.autoRotateSpeed = 1.0;
+                    this.controls = controls;
+
+                    // 加载 STL 模型
+                    const loader = new STLLoader();
+                    const modelUrl = this.models[0].model_url;
+                    loader.load(
+                        modelUrl,
+                        (geometry) => {
+                        // 计算模型包围盒，用于缩放和居中
+                        geometry.computeBoundingBox();
+                        const boundingBox = geometry.boundingBox;
+                        const center = boundingBox.getCenter(new THREE.Vector3());
+                        const size = boundingBox.getSize(new THREE.Vector3());
+                        const maxDim = Math.max(size.x, size.y, size.z);
+                        const scale = 3 / maxDim;
+
+                        // 创建主材质（浅色，略带粗糙）
+                        const material = new THREE.MeshStandardMaterial({
+                            color: 0xf5f0e6,          // 米白色
+                            roughness: 0.4,
+                            metalness: 0.1
+                        });
+
+                        const mesh = new THREE.Mesh(geometry, material);
+                        mesh.scale.setScalar(scale);
+                        mesh.position.sub(center.clone().multiplyScalar(scale));
+                        scene.add(mesh);
+
+                        // 创建边缘线
+                        const edges = new THREE.EdgesGeometry(geometry);
+                        const lineMaterial = new THREE.LineBasicMaterial({ color: 0x555555, linewidth: 1 });
+                        const wireframe = new THREE.LineSegments(edges, lineMaterial);
+                        wireframe.scale.setScalar(scale);
+                        wireframe.position.copy(mesh.position); // 与主模型位置一致
+                        scene.add(wireframe);
+
+                        // 设置控制器焦点
+                        controls.target.set(0, 0, 0);
+                        controls.update();
+                    },
+                        (xhr) => {
+                            console.log(`模型加载进度: ${(xhr.loaded / xhr.total * 100).toFixed(2)}%`);
+                        },
+                        (error) => {
+                            console.error('模型加载失败:', error);
+                            alert('3D模型加载失败，请检查文件是否存在');
+                        }
+                    );
+
+                    // 动画循环
+                    const animate = () => {
+                        this.animationId = requestAnimationFrame(animate);
+                        controls.update();
+                        renderer.render(scene, camera);
+                    };
+                    animate();
+
+                    // 窗口大小调整
+                    window.addEventListener('resize', this.handleResize);
+                } catch (error) {
+                    console.error('互动页面初始化失败:', error);
+                    this.loading = false;
                 }
-            );
-
-            // 动画循环
-            const animate = () => {
-                this.animationId = requestAnimationFrame(animate);
-                controls.update();
-                renderer.render(scene, camera);
-            };
-            animate();
-
-            // 窗口大小调整
-            window.addEventListener('resize', this.handleResize);
-        } catch (error) {
-            console.error('互动页面初始化失败:', error);
-            this.loading = false;
-        }
-    },
-    methods: {
-        handleResize() {
-            if (this.camera && this.renderer) {
-                const container = document.getElementById('three-container');
-                if (!container) return;
-                this.camera.aspect = container.clientWidth / container.clientHeight;
-                this.camera.updateProjectionMatrix();
-                this.renderer.setSize(container.clientWidth, container.clientHeight);
+            },
+            methods: {
+                handleResize() {
+                    if (this.camera && this.renderer) {
+                        const container = document.getElementById('three-container');
+                        if (!container) return;
+                        this.camera.aspect = container.clientWidth / container.clientHeight;
+                        this.camera.updateProjectionMatrix();
+                        this.renderer.setSize(container.clientWidth, container.clientHeight);
+                    }
+                }
+            },
+            beforeUnmount() {
+                if (this.animationId) cancelAnimationFrame(this.animationId);
+                if (this.renderer) {
+                    this.renderer.dispose();
+                    const container = document.getElementById('three-container');
+                    if (container && this.renderer.domElement) {
+                        container.removeChild(this.renderer.domElement);
+                    }
+                }
+                window.removeEventListener('resize', this.handleResize);
             }
-        }
-    },
-    beforeUnmount() {
-        if (this.animationId) cancelAnimationFrame(this.animationId);
-        if (this.renderer) {
-            this.renderer.dispose();
-            const container = document.getElementById('three-container');
-            if (container && this.renderer.domElement) {
-                container.removeChild(this.renderer.domElement);
+        };
+
+        // 登录组件
+        const LoginPage = {
+            template: `
+                <div class="form-container">
+                    <h2 style="text-align:center;">用户登录</h2>
+                    <form @submit.prevent="login">
+                        <div class="form-group">
+                            <label>用户名</label>
+                            <input v-model="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label>密码</label>
+                            <input type="password" v-model="password" required>
+                        </div>
+                        <button type="submit" class="btn" style="width:100%;">登录</button>
+                    </form>
+                    <p v-if="error" style="color:red; text-align:center;">{{ error }}</p>
+                    <p style="text-align:center; margin-top:10px;">还没有账号？<router-link to="/register">注册</router-link></p>
+                </div>
+            `,
+            data() {
+                return { username: '', password: '', error: '' };
+            },
+            methods: {
+                async login() {
+                    try {
+                        const formData = new FormData();
+                        formData.append('username', this.username);
+                        formData.append('password', this.password);
+                        const res = await axios.post('http://localhost:8000/api/auth/login', formData);
+                        userState.token = res.data.access_token;
+                        localStorage.setItem('token', res.data.access_token);
+                        // 获取用户信息
+                        const meRes = await axios.get('http://localhost:8000/api/auth/me');
+                        userState.user = meRes.data;
+                        localStorage.setItem('user', JSON.stringify(meRes.data));
+                        this.$router.push('/');
+                    } catch (err) {
+                        this.error = err.response?.data?.detail || '登录失败';
+                    }
+                }
             }
-        }
-        window.removeEventListener('resize', this.handleResize);
-    }
-};
+        };
+
+        // 注册组件
+        const RegisterPage = {
+            template: `
+                <div class="form-container">
+                    <h2 style="text-align:center;">用户注册</h2>
+                    <form @submit.prevent="register">
+                        <div class="form-group">
+                            <label>用户名</label>
+                            <input v-model="username" required>
+                        </div>
+                        <div class="form-group">
+                            <label>密码</label>
+                            <input type="password" v-model="password" required>
+                        </div>
+                        <button type="submit" class="btn" style="width:100%;">注册</button>
+                    </form>
+                    <p v-if="error" style="color:red; text-align:center;">{{ error }}</p>
+                    <p style="text-align:center; margin-top:10px;">已有账号？<router-link to="/login">登录</router-link></p>
+                </div>
+            `,
+            data() {
+                return { username: '', password: '', error: '' };
+            },
+            methods: {
+                async register() {
+                    try {
+                        await axios.post('http://localhost:8000/api/auth/register', {
+                            username: this.username,
+                            password: this.password
+                        });
+                        this.$router.push('/login');
+                    } catch (err) {
+                        this.error = err.response?.data?.detail || '注册失败';
+                    }
+                }
+            }
+        };
+
+        // 公告管理组件（仅管理员）
+        const AdminAnnouncements = {
+            template: `
+                <div>
+                    <h1>公告管理</h1>
+                    <div class="form-container" style="max-width:600px;">
+                        <h3>{{ editingId ? '编辑公告' : '新增公告' }}</h3>
+                        <div class="form-group">
+                            <label>标题</label>
+                            <input v-model="form.title" required>
+                        </div>
+                        <div class="form-group">
+                            <label>内容</label>
+                            <textarea v-model="form.content" rows="4" required></textarea>
+                        </div>
+                        <button class="btn" @click="saveAnnouncement">{{ editingId ? '更新' : '发布' }}</button>
+                        <button v-if="editingId" class="btn" style="background:gray;" @click="cancelEdit">取消</button>
+                    </div>
+                    <table class="admin-table">
+                        <thead>
+                            <tr><th>ID</th><th>标题</th><th>发布时间</th><th>操作</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="ann in announcements" :key="ann.id">
+                                <td>{{ ann.id }}</td>
+                                <td>{{ ann.title }}</td>
+                                <td>{{ new Date(ann.publish_time).toLocaleString() }}</td>
+                                <td>
+                                    <button class="btn-edit" @click="editAnnouncement(ann)">编辑</button>
+                                    <button class="btn-danger" @click="deleteAnnouncement(ann.id)">删除</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `,
+            data() {
+                return {
+                    announcements: [],
+                    form: { title: '', content: '' },
+                    editingId: null
+                };
+            },
+            async mounted() {
+                await this.fetchAnnouncements();
+            },
+            methods: {
+                async fetchAnnouncements() {
+                    const res = await axios.get('http://localhost:8000/api/home/announcements');
+                    this.announcements = res.data;
+                },
+                async saveAnnouncement() {
+                    try {
+                        if (this.editingId) {
+                            await axios.put(`http://localhost:8000/api/admin/announcements/${this.editingId}`, this.form);
+                        } else {
+                            await axios.post('http://localhost:8000/api/admin/announcements', this.form);
+                        }
+                        this.form = { title: '', content: '' };
+                        this.editingId = null;
+                        await this.fetchAnnouncements();
+                    } catch (err) {
+                        alert(err.response?.data?.detail || '操作失败');
+                    }
+                },
+                editAnnouncement(ann) {
+                    this.editingId = ann.id;
+                    this.form = { title: ann.title, content: ann.content };
+                },
+                cancelEdit() {
+                    this.editingId = null;
+                    this.form = { title: '', content: '' };
+                },
+                async deleteAnnouncement(id) {
+                    if (confirm('确定删除这条公告吗？')) {
+                        await axios.delete(`http://localhost:8000/api/admin/announcements/${id}`);
+                        await this.fetchAnnouncements();
+                    }
+                }
+            }
+        };
+
 
         // ==================== 路由配置 ====================
         const routes = [
@@ -635,7 +881,14 @@ const InteractivePage = {
             { path: '/history/:id', component: HistoryDetailPage, props: true },
             { path: '/craft', component: CraftListPage },
             { path: '/craft/:id', component: CraftDetailPage, props: true },
-            { path: '/interactive', component: InteractivePage }
+            { path: '/interactive', component: InteractivePage },
+            { path: '/login', component: LoginPage },
+            { path: '/register', component: RegisterPage },
+            {
+                path: '/admin/announcements',
+                component: AdminAnnouncements,
+                meta: { requiresAuth: true, requiresAdmin: true }
+            }
         ];
 
         const router = createRouter({
@@ -643,8 +896,32 @@ const InteractivePage = {
             routes
         });
 
+        // 路由守卫
+        router.beforeEach((to, from, next) => {
+            if (to.meta.requiresAuth && !userState.isLoggedIn) {
+                next('/login');
+            } else if (to.meta.requiresAdmin && !userState.isAdmin) {
+                next('/');  // 非管理员跳转首页
+            } else {
+                next();
+            }
+        });
+
         // ==================== 创建应用 ====================
-        const app = createApp({});
+        const app = createApp({
+            setup() {
+                // 提供用户状态给所有组件
+                provide('userState', userState);
+                const logout = () => {
+                    userState.token = '';
+                    userState.user = null;
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    router.push('/');
+                };
+                return { userState, logout };
+            }
+        });
         app.use(router);
         app.mount('#app');
     </script>

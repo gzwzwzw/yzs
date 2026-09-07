@@ -1,3 +1,4 @@
+from app.auth import get_password_hash
 from app.database import SessionLocal, engine, Base
 from app import models
 
@@ -10,7 +11,17 @@ def init_db():
         # 如果已有数据则跳过
         if db.query(models.CulturalHistory).count() > 0:
             return
-
+        # 创建管理员（如果不存在）
+        admin_user = db.query(models.User).filter(models.User.username == "admin").first()
+        if not admin_user:
+            admin_user = models.User(
+                username="admin",
+                password_hash=get_password_hash("admin123"),  # 请修改默认密码
+                    role="admin"
+                )
+            db.add(admin_user)
+            db.commit()
+            db.refresh(admin_user)
         # ===== 首页轮播图 =====
         banners = [
             models.HomeBanner(
